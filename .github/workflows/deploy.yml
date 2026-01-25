@@ -1,0 +1,60 @@
+name: Deploy to Live
+
+on:
+  push:
+    branches: [main, production]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_KEY }}
+          port: 22
+          script: |
+            cd /var/www/deltarray
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Deploy backend
+            echo "=== Deploying Backend ==="
+            cd backend
+            npm install --production
+            pm2 restart deltarray-backend || pm2 start server.js --name "deltarray-backend"
+            
+            # Deploy frontend
+            echo "=== Deploying Frontend ==="
+            cd ../frontend
+            npm install --production
+            npm run build
+            
+            # Reload Nginx
+            sudo systemctl reload nginx
+            
+            # Save PM2
+            pm2 save
+            
+            echo "=== Deployment Complete ==="
+            pm2 status
+
+      - name: Notify Deployment
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo "App: http://${{ secrets.EC2_HOST }}"
+          echo "API: http://${{ secrets.EC2_HOST }}/api"
+
+      - name: Alert on Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check EC2 instance and logs"
