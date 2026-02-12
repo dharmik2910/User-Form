@@ -1,0 +1,38 @@
+name: Frontend Deployment
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy frontend to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "frontend/"
+          target: "/home/ubuntu/fullstack-auth-app/"
+
+      - name: Build & Restart frontend
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/fullstack-auth-app/frontend
+            npm install
+            npm run build
+            pm2 restart frontend || pm2 start npm --name "frontend" -- start

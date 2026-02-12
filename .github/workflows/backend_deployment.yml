@@ -1,0 +1,43 @@
+name: Backend Deployment
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Backend on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+            cd /home/ubuntu
+
+            if [ ! -d "fullstack-auth-app" ]; then
+              git clone https://github.com/dharmik2910/User-Form.git fullstack-auth-app
+            fi
+
+            cd fullstack-auth-app
+            git pull origin main
+
+            cd backend
+
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+
+            source venv/bin/activate
+            pip install -r requirements.txt
+
+            pm2 delete backend || true
+            pm2 start "uvicorn main:app --host 0.0.0.0 --port 5000" --name backend

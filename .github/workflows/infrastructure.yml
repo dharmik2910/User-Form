@@ -1,0 +1,19 @@
+name: Infrastructure Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+
+jobs:
+  infra-check:
+    name: Infrastructure Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Infra Workflow Test
+        run: echo "Infrastructure workflow running successfully"
